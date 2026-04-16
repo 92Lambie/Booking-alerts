@@ -15,7 +15,11 @@ first_run = False
 
 def send(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, timeout=30)
+    requests.post(
+        url,
+        json={"chat_id": TELEGRAM_CHAT_ID, "text": msg},
+        timeout=30,
+    )
 
 
 def get_events(url, source):
@@ -29,10 +33,6 @@ def get_events(url, source):
         start = str(e.get("dtstart").dt)
         end = str(e.get("dtend").dt)
         summary = str(e.get("summary", "")).strip()
-
-        # Ignore Booking.com closed blocks
-        if "closed" in summary.lower() or "not available" in summary.lower():
-            continue
 
         key = hashlib.md5(f"{source}|{start}|{end}|{summary}".encode()).hexdigest()
         events.append((key, source, start, end))
@@ -61,7 +61,6 @@ def main():
             send(f"🏡 New booking\n{source}\n{start} → {end}")
             seen.add(key)
 
-    # Keep seen list tidy
     seen = current_keys
     first_run = False
 
@@ -69,4 +68,4 @@ def main():
 if __name__ == "__main__":
     while True:
         main()
-        time.sleep(300)  # every 5 minutes
+        time.sleep(300)  # check every 5 minutes
