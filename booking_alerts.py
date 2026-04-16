@@ -37,5 +37,9 @@ def main():
             seen.add(key)
             send(f"🏡 New booking ({source})\n{summary}\n{start} → {end}")
 
+import time
+
 if __name__ == "__main__":
-    main()
+    while True:
+        main()
+        time.sleep(300)  # check every 5 minutes
