@@ -9,6 +9,7 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 seen = set()
+print("FORCE RUN - sending all events")
 
 def send(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -33,9 +34,7 @@ def main():
     events += get_events(BOOKING_ICAL_URL, "Booking")
 
     for key, source, start, end, summary in events:
-        if key not in seen:
-            seen.add(key)
-            send(f"🏡 New booking ({source})\n{summary}\n{start} → {end}")
+        send(f"🏡 TEST BOOKING ({source})\n{summary}\n{start} → {end}")
 
 import time
 
