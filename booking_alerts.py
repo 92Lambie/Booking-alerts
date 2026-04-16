@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import hashlib
 from icalendar import Calendar
@@ -9,36 +10,63 @@ TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
 seen = set()
-print("FORCE RUN - sending all events")
+first_run = True
+
 
 def send(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg})
+    requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, timeout=30)
+
 
 def get_events(url, source):
-    cal = Calendar.from_ical(requests.get(url).text)
+    cal = Calendar.from_ical(requests.get(url, timeout=30).text)
     events = []
+
     for e in cal.walk():
-        if e.name == "VEVENT":
-            start = str(e.get("dtstart").dt)
-            end = str(e.get("dtend").dt)
-            summary = str(e.get("summary"))
-            key = hashlib.md5(f"{start}{end}{summary}".encode()).hexdigest()
-            events.append((key, source, start, end, summary))
+        if e.name != "VEVENT":
+            continue
+
+        start = str(e.get("dtstart").dt)
+        end = str(e.get("dtend").dt)
+        summary = str(e.get("summary", "")).strip()
+
+        # Ignore Booking.com closed blocks
+        if "closed" in summary.lower() or "not available" in summary.lower():
+            continue
+
+        key = hashlib.md5(f"{source}|{start}|{end}|{summary}".encode()).hexdigest()
+        events.append((key, source, start, end))
+
     return events
 
+
 def main():
+    global first_run
     global seen
+
     events = []
     events += get_events(AIRBNB_ICAL_URL, "Airbnb")
-    events += get_events(BOOKING_ICAL_URL, "Booking")
+    events += get_events(BOOKING_ICAL_URL, "Booking.com")
 
-    for key, source, start, end, summary in events:
-        send(f"🏡 TEST BOOKING ({source})\n{summary}\n{start} → {end}")
+    current_keys = set()
 
-import time
+    for key, source, start, end in events:
+        current_keys.add(key)
+
+        if first_run:
+            seen.add(key)
+            continue
+
+        if key not in seen:
+            send(f"🏡 New booking\n{source}\n{start} → {end}")
+            seen.add(key)
+
+    # Keep seen list tidy
+    seen = current_keys
+    first_run = False
+
 
 if __name__ == "__main__":
     while True:
         main()
-        time.sleep(300)  # check every 5 minutes
+        time.sleep(300)  # every 5 minutes
